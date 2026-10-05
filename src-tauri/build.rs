@@ -1,4 +1,6 @@
 fn main() {
+    link_needle();
+
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     build_apple_intelligence_bridge();
 
@@ -35,6 +37,64 @@ fn main() {
     stage_vc_runtime_dlls();
 
     tauri_build::build()
+}
+
+/// Link Cactus's prebuilt Whisper/Whistle STT runtime (`vendor/needle/`).
+///
+/// This is the only vendored native binary in the repo — every other inference
+/// dependency arrives as a crate. `libneedle.a` is upstream's own build of the
+/// engine behind `EngineType::Whistle` (see `src-tauri/src/audio_toolkit/whistle.rs`
+/// and `vendor/needle/README.md`), so it is linked statically like any other
+/// archive rather than compiled from source here.
+///
+/// Targets are mapped to the upstream folder that serves an archive for them.
+/// There is deliberately no `macos-x86_64` folder upstream, so Intel Macs fall
+/// through to the no-op below and the whistle module compiles to its stub —
+/// `whistle::is_supported_target()` and the catalog gate read the same predicate.
+/// Never emit link directives for a target without a matching archive: the
+/// linker error would break every build rather than just skipping one engine.
+///
+/// libc++ is required on *every* supported target, not only Apple: all five
+/// archives reference `St3__1` symbols (upstream builds them with libc++ and no
+/// `__cxx11` ABI markers).
+///
+/// The target map here is also the single source of truth for the `whistle_linked`
+/// cfg the crate branches on — a `cfg` attribute can't call a macro, so the
+/// predicate has to live in a build script to keep the link state and the
+/// compiled module from drifting apart.
+fn link_needle() {
+    println!("cargo:rustc-check-cfg=cfg(whistle_linked)");
+
+    let Some(folder) = (match std::env::var("TARGET").as_deref() {
+        Ok("aarch64-apple-darwin") => Some("macos-arm64"),
+        Ok("x86_64-pc-windows-msvc") => Some("windows-x86_64"),
+        Ok("aarch64-pc-windows-msvc") => Some("windows-arm64"),
+        Ok("x86_64-unknown-linux-gnu") => Some("linux-x86_64"),
+        Ok("aarch64-unknown-linux-gnu") => Some("linux-arm64"),
+        _ => None,
+    }) else {
+        return;
+    };
+
+    let dir = std::path::Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
+        .join("vendor/needle")
+        .join(folder);
+    let archive = dir.join("libneedle.a");
+
+    // A silently-skipped engine would be far more expensive to diagnose than a
+    // failed build: the catalog would still list Whistle and every load would
+    // fail at runtime with a missing-symbol error.
+    assert!(
+        archive.exists(),
+        "vendored Cactus engine missing: {}. Re-fetch it per vendor/needle/README.md.",
+        archive.display()
+    );
+    println!("cargo:rerun-if-changed={}", archive.display());
+
+    println!("cargo:rustc-link-search=native={}", dir.display());
+    println!("cargo:rustc-link-lib=static=needle");
+    println!("cargo:rustc-link-lib=c++");
+    println!("cargo:rustc-cfg=whistle_linked");
 }
 
 /// Stage the MSVC runtime DLLs into `transcribe-libs/` for app-local deployment.

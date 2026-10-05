@@ -1,6 +1,6 @@
 use crate::audio_toolkit::{
     apply_custom_words, detect_output_language, normalize_transcription_output,
-    remove_filler_words, OutputLanguageEvidence,
+    remove_filler_words, OutputLanguageEvidence, WhistleEngine, WhistleOptions,
 };
 use crate::chinese_script::{convert_chinese_script, ChineseVariety};
 use crate::managers::audio::AudioRecordingManager;
@@ -189,6 +189,10 @@ enum LoadedEngine {
     GigaAM(GigaAMModel),
     Canary(CanaryModel),
     Cohere(CohereModel),
+    /// Cactus Whistle, loaded through Cactus's native engine. That engine is
+    /// process-global and non-thread-safe, so this variant serialises its own
+    /// calls behind the module's `NEEDLE_LOCK`; see `audio_toolkit::whistle`.
+    Whistle(WhistleEngine),
 }
 
 /// RAII guard that clears the `is_loading` flag and notifies waiters on drop.
@@ -706,6 +710,14 @@ impl TranscriptionManager {
                 })?;
                 LoadedEngine::Cohere(engine)
             }
+            EngineType::Whistle => {
+                let engine = WhistleEngine::load(&model_path).map_err(|e| {
+                    let error_msg = format!("Failed to load Whistle model {}: {}", model_id, e);
+                    emit_loading_failed(&error_msg);
+                    anyhow::anyhow!(error_msg)
+                })?;
+                LoadedEngine::Whistle(engine)
+            }
         };
 
         // Update the current engine and model ID
@@ -786,6 +798,9 @@ impl TranscriptionManager {
             Some(LoadedEngine::TranscribeCpp(session)) => {
                 Some(session.model().backend().to_string())
             }
+            // Cactus's engine reports no compute device — it is CPU-only, like
+            // the ONNX engines, so name it rather than mislabel it "onnx".
+            Some(LoadedEngine::Whistle(_)) => Some("whistle".to_string()),
             Some(_) => Some("onnx".to_string()),
             None => None,
         }
@@ -1435,6 +1450,40 @@ impl TranscriptionManager {
                             .transcribe(&audio, &options)
                             .map(|r| r.text)
                             .map_err(|e| anyhow::anyhow!("Cohere transcription failed: {}", e))
+                    }
+                    LoadedEngine::Whistle(engine) => {
+                        // No translation: Whistle cannot translate, and its
+                        // catalog entry advertises `translate: false`, so
+                        // `output_was_translated` stays false and the custom-words
+                        // fuzzy pass handles those words downstream.
+                        let lang = match validated_language.as_str() {
+                            "auto" | "" => None,
+                            other => Some(other.to_string()),
+                        };
+                        applied_language_hint = lang.clone();
+                        // needle takes newline-separated keyword biasing; it
+                        // rejects a code outside its own allowlist, which
+                        // `WhistleOptions` coerces to auto-detect.
+                        let keywords = if settings.custom_words.is_empty() {
+                            None
+                        } else {
+                            Some(settings.custom_words.join("\n"))
+                        };
+                        engine
+                            .transcribe(
+                                &audio,
+                                &WhistleOptions {
+                                    language: lang,
+                                    keywords,
+                                },
+                            )
+                            .map(|r| {
+                                // The engine reports the language it decoded
+                                // with, which for "auto" is the useful signal.
+                                model_detected_language = Some(r.language);
+                                r.text
+                            })
+                            .map_err(|e| anyhow::anyhow!("Whistle transcription failed: {}", e))
                     }
                 }
             }));

@@ -59,6 +59,20 @@ struct CatalogModel {
     /// from `recommended_rank`, which only orders the full list.
     #[serde(default)]
     recommended: bool,
+    /// Non-default inference backend for this model, e.g. `"whistle"` for the
+    /// one model served by Cactus's native engine. Absent means the default
+    /// transcribe-cpp GGML/GGUF path, which is every catalog entry but that one.
+    #[serde(default)]
+    engine: Option<String>,
+}
+
+/// The backend a catalog entry loads through. Absent `engine` means transcribe-cpp;
+/// it is the overwhelmingly common case, so only non-default engines are named.
+fn engine_of(m: &CatalogModel) -> EngineType {
+    match m.engine.as_deref() {
+        Some("whistle") => EngineType::Whistle,
+        _ => EngineType::TranscribeCpp,
+    }
 }
 
 #[derive(Deserialize)]
@@ -90,7 +104,7 @@ impl From<&CatalogModel> for ModelDescriptor {
             },
             name: m.name.clone(),
             description: m.description.clone(),
-            engine_type: EngineType::TranscribeCpp,
+            engine_type: engine_of(m),
             caps: CapabilityProbe {
                 verdict: Compatibility::Compatible, // curated org models we ship support for
                 display_name: None,
@@ -271,9 +285,11 @@ mod tests {
 
     #[test]
     fn catalog_architectures_are_known_to_capability_probe() {
-        let missing: BTreeSet<&str> = CATALOG
+        let missing: BTreeSet<&str> = ROOT
+            .models
             .iter()
-            .filter_map(|d| d.caps.architecture.as_deref())
+            .filter(|m| engine_of(m) == EngineType::TranscribeCpp)
+            .filter_map(|m| m.architecture.as_deref())
             .filter(|arch| !KNOWN_ARCHES.contains(arch))
             .collect();
 
@@ -282,5 +298,20 @@ mod tests {
             "catalog architecture(s) missing from KNOWN_ARCHES: {:?}",
             missing
         );
+    }
+
+    #[test]
+    fn only_whistle_opts_out_of_transcribe_cpp() {
+        // `KNOWN_ARCHES` (and the GGUF prober behind it) only knows transcribe-cpp
+        // architectures; an entry naming a non-default engine must therefore be
+        // excluded from that check above, and the exclusion has to stay exactly
+        // as wide as the set of named engines.
+        let non_default: Vec<&str> = ROOT
+            .models
+            .iter()
+            .filter(|m| engine_of(m) != EngineType::TranscribeCpp)
+            .filter_map(|m| m.engine.as_deref())
+            .collect();
+        assert_eq!(non_default, ["whistle"]);
     }
 }

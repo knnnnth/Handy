@@ -2234,6 +2234,33 @@
       "default_quant": "Q5_K_M",
       "recommended": false,
       "recommended_rank": null
+    },
+    {
+      "id": "Cactus-Compute/whistle",
+      "revision": "b358ddadd89b7a713b5aa131f23032d3cca1b251",
+      "slug": "whistle",
+      "name": "Cactus Whistle",
+      "architecture": "whistle",
+      "family": "whistle",
+      "parameters": "17M",
+      "description": "Tiny 17 MB CPU model. English, German, French, Spanish, Italian, Dutch, Polish.",
+      "base_model": "Cactus-Compute/whistle",
+      "license": "apache-2.0",
+      "language_count": 7,
+      "languages": ["en", "de", "fr", "es", "it", "nl", "pl"],
+      "capabilities": {
+        "streaming": false,
+        "translate": false,
+        "lang_detect": true,
+        "timestamps": "none"
+      },
+      "engine": "whistle",
+      "files": [
+        {"filename": "whistle.cact", "quant": "cact", "size_bytes": 16919407, "sha256": "b6e02f048568ac5d01a2042556c658061e699acbc0aa2a1439f52f3d461dffeb"}
+      ],
+      "default_quant": "cact",
+      "recommended": false,
+      "recommended_rank": 11
     }
   ]
 }

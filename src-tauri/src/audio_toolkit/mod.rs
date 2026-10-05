@@ -4,6 +4,7 @@ pub mod lang_id;
 pub mod text;
 pub mod utils;
 pub mod vad;
+pub mod whistle;
 
 pub use audio::{
     is_microphone_access_denied, is_no_input_device_error, list_input_devices, list_output_devices,
@@ -15,3 +16,4 @@ pub use text::{
 };
 pub use utils::get_cpal_host;
 pub use vad::{EarshotVad, SileroVad, VoiceActivityDetector};
+pub use whistle::{WhistleEngine, WhistleOptions, WhistleResult};

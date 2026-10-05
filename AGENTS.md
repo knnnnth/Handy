@@ -64,6 +64,7 @@ Handy is a cross-platform desktop speech-to-text application built with Tauri 2.
 - `audio_toolkit/` - Low-level audio processing:
   - `audio/` - Device enumeration, recording, resampling
   - `vad/` - Voice Activity Detection (Silero VAD)
+  - `whistle.rs` - Cactus Whistle STT engine (native FFI, `vendor/needle/`)
 - `commands/` - Tauri command handlers for frontend communication
 - `cli.rs` - CLI argument definitions (clap derive)
 - `shortcut.rs` - Global keyboard shortcut handling

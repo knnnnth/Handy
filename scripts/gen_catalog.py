@@ -9,6 +9,8 @@ Merges three sources into one catalog.json:
   1. HF card `transcribe_cpp` block  -> capabilities + benchmarks (canonical)
   2. a tiny GGUF header range-read    -> display labels only
   3. local CURATION (this file)       -> recommended set, editorial descriptions
+plus STATIC_MODELS below, hand-written entries for models that live outside ORG
+and/or are served by a non-default engine (the scan cannot produce those).
 
 Emits catalog.json to be committed and `include_str!`'d into the Rust binary.
 Run:  HF_TOKEN=$(hf auth token) uv run gen_catalog.py [out_path]
@@ -65,6 +67,46 @@ OVERRIDES = {
     "granite-4.0-1b-speech": {"timestamps": "none"},
     "granite-speech-4.1-2b": {"timestamps": "none"},
 }
+
+# ───────────────────────── static entries (outside ORG) ─────────────────────
+# Models that live in another org and are served by a non-default engine. The
+# ORG scan above can only produce transcribe-cpp GGUF entries: it reads
+# `transcribe_cpp` card data and probes GGUF headers, and a `.cact` file has
+# neither. These entries are therefore written by hand and appended verbatim.
+#
+# `"engine"` selects the backend in the Rust catalog loader (`EngineType`); it
+# is absent on every generated entry, which all default to transcribe-cpp.
+# Speed/accuracy scores are omitted wherever no independently measured figure
+# exists — the UI hides the score bars at 0 rather than showing a vendor number
+# as if it were a benchmark. Rank/recommended are editorial one-liners.
+STATIC_MODELS = [
+    {
+        "id": "Cactus-Compute/whistle",
+        "revision": "b358ddadd89b7a713b5aa131f23032d3cca1b251",
+        "slug": "whistle",
+        "name": "Cactus Whistle",
+        "architecture": "whistle",
+        "family": "whistle",
+        "parameters": "17M",
+        "description": "Tiny 17 MB CPU model. English, German, French, Spanish, Italian, Dutch, Polish.",
+        "base_model": "Cactus-Compute/whistle",
+        "license": "apache-2.0",
+        "language_count": 7,
+        "languages": ["en", "de", "fr", "es", "it", "nl", "pl"],
+        "capabilities": {"streaming": False, "translate": False, "lang_detect": True,
+                         "timestamps": "none"},
+        "engine": "whistle",
+        # `quant` is mandatory and `default_quant_file` matches on it, so the
+        # single .cact file is its own quant: one container, no variants.
+        "files": [
+            {"filename": "whistle.cact", "quant": "cact", "size_bytes": 16919407,
+             "sha256": "b6e02f048568ac5d01a2042556c658061e699acbc0aa2a1439f52f3d461dffeb"}
+        ],
+        "default_quant": "cact",
+        "recommended": False,
+        "recommended_rank": 11,
+    },
+]
 
 # ───────────────────────── helpers ──────────────────────────────────────────
 ARCH = ["whisper","moonshine-streaming","moonshine","parakeet","canary-qwen","canary","voxtral",
@@ -275,8 +317,9 @@ def main():
     if failures:
         print(f"catalog generation failed for {len(failures)} repo(s)", file=sys.stderr)
         raise SystemExit(1)
+    models.extend(STATIC_MODELS)
     models.sort(key=lambda m: (not m["recommended"], m["recommended_rank"] or 1e9,
-                               m["family"], -(m["speed_score"] or 0), m["slug"]))
+                               m["family"], -(m.get("speed_score") or 0), m["slug"]))
     catalog = {
         "catalog_version": CATALOG_VERSION,
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),

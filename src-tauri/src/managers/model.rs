@@ -23,7 +23,7 @@ mod download;
 
 use download::{HttpDownloadOutcome, DOWNLOAD_STALL_TIMEOUT};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub enum EngineType {
     /// Any GGML/GGUF model loaded through transcribe-cpp (Whisper, Parakeet,
     /// Voxtral, Qwen3-ASR, Nemotron, …). The architecture is auto-detected from
@@ -36,6 +36,11 @@ pub enum EngineType {
     GigaAM,
     Canary,
     Cohere,
+    /// Cactus Whistle — a 16.9 MB `.cact` model served by Cactus's prebuilt
+    /// native runtime (`src-tauri/src/audio_toolkit/whistle.rs`), not by any Rust
+    /// inference crate. The engine is process-global, so its module serialises
+    /// every call; see `whistle::is_supported_target()` for the target gate.
+    Whistle,
 }
 
 /// Where a model comes from and how Handy obtains it — the routing discriminant
@@ -1213,6 +1218,18 @@ impl ModelManager {
         use std::collections::hash_map::Entry;
         let mut added = 0usize;
         for desc in crate::catalog::CATALOG.iter() {
+            // A model whose engine has no build for this target can only fail to
+            // load, so never offer it: upstream ships no macos-x86_64 Cactus
+            // engine, and every other engine-less target compiles whistle's stub.
+            if desc.engine_type == EngineType::Whistle
+                && !crate::audio_toolkit::whistle::is_supported_target()
+            {
+                debug!(
+                    "Skipping catalog model {}: no Cactus engine for this target",
+                    desc.id
+                );
+                continue;
+            }
             if let Entry::Vacant(slot) = available_models.entry(desc.id.clone()) {
                 slot.insert(desc.to_model_info(&DiskStatus::default()));
                 added += 1;
