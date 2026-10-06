@@ -17,7 +17,36 @@ The Rust side is `src-tauri/src/audio_toolkit/whistle.rs`; the link wiring is
 | Pinned revision | `c7c415a3d1b3d929014bc6e866d51ebb971f7089` (a commit sha — the resolve URLs are immutable and CDN-cacheable)                                                                                                   |
 | C API header    | `needle.h` (verbatim copy of `<revision>/macos-arm64/needle.h`; the header is byte-identical across all five platform folders)                                                                                 |
 | Weights         | [`Cactus-Compute/whistle`](https://huggingface.co/Cactus-Compute/whistle) @ `b358ddadd89b7a713b5aa131f23032d3cca1b251`, file `whistle.cact` — **not** vendored, downloaded at runtime into the shared HF cache |
-| License         | Apache-2.0                                                                                                                                                                                                     |
+| License         | Apache-2.0 — see [Attribution](#attribution) below                                                                                                |
+
+## Attribution
+
+The archives and `needle.h` here are **unmodified upstream builds** of the Cactus
+Needle engine, redistributed under the Apache License 2.0. `LICENSE` in this
+directory is a verbatim copy of the one upstream ships (sha256
+`cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`).
+
+> Needle: Foundation Tool-Calling Model for Tiny Devices
+> Copyright the Cactus Compute team — Cactus Compute, Inc.
+> Ndubuaku, Henry; Mosoyan, Karen; Mroz, Jakub; Cylich, Noah; Kumar, Satyajit;
+> Sandhu, Parkirat; Shemet, Roman; Lee, Justin H. (2026).
+> <https://github.com/cactus-compute/needle>
+>
+> Licensed under the Apache License, Version 2.0. The upstream `LICENSE` file
+> carries the stock `[yyyy] [name of copyright owner]` placeholder — it names no
+> copyright holder — so the attribution above uses Cactus's own requested citation
+> from the [needle3 model card](https://huggingface.co/Cactus-Compute/needle3)
+> rather than a line we invented. Upstream contact: founders@cactuscompute.com.
+
+Two notes for anyone refreshing or relicensing this:
+
+- **Only the runtime is vendored.** The `whistle.cact` weights are fetched from
+  Hugging Face on demand and sha256-verified against the hash in
+  `src-tauri/src/catalog/catalog.json`; they are Apache-2.0 as well, but they are
+  not in this directory and no licence copy is owed here.
+- **Apache-2.0 §4(a)** requires passing a copy of the licence to anyone we
+  distribute the archives to. That is why `LICENSE` sits beside them rather than
+  only being linked from this file. Keep it if the archives move.
 
 ## Files
 
@@ -88,7 +117,3 @@ whistle`, then silence and speech end-to-end through `--transcribe-file`
    `src-tauri/src/audio_toolkit/whistle.rs`.
 4. Commit the new archives **and** the updated hashes together — an unreviewed
    swap of a vendored binary is unreviewable.
-
-Model weights are deliberately _not_ vendored: `whistle.cact` is fetched from
-Hugging Face on demand and sha256-verified against the hash in
-`src-tauri/src/catalog/catalog.json`.
