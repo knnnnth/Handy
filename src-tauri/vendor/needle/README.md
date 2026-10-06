@@ -11,13 +11,13 @@ The Rust side is `src-tauri/src/audio_toolkit/whistle.rs`; the link wiring is
 
 ## Source
 
-| What             | Where                                                                                                                                                                              |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Runtime repo     | [`Cactus-Compute/needle3`](https://huggingface.co/Cactus-Compute/needle3)                                                                                                            |
-| Pinned revision  | `c7c415a3d1b3d929014bc6e866d51ebb971f7089` (a commit sha — the resolve URLs are immutable and CDN-cacheable)                                                                           |
-| C API header     | `needle.h` (verbatim copy of `<revision>/macos-arm64/needle.h`; the header is byte-identical across all five platform folders)                                                         |
-| Weights          | [`Cactus-Compute/whistle`](https://huggingface.co/Cactus-Compute/whistle) @ `b358ddadd89b7a713b5aa131f23032d3cca1b251`, file `whistle.cact` — **not** vendored, downloaded at runtime into the shared HF cache |
-| License          | Apache-2.0                                                                                                                                                                          |
+| What            | Where                                                                                                                                                                                                          |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime repo    | [`Cactus-Compute/needle3`](https://huggingface.co/Cactus-Compute/needle3)                                                                                                                                      |
+| Pinned revision | `c7c415a3d1b3d929014bc6e866d51ebb971f7089` (a commit sha — the resolve URLs are immutable and CDN-cacheable)                                                                                                   |
+| C API header    | `needle.h` (verbatim copy of `<revision>/macos-arm64/needle.h`; the header is byte-identical across all five platform folders)                                                                                 |
+| Weights         | [`Cactus-Compute/whistle`](https://huggingface.co/Cactus-Compute/whistle) @ `b358ddadd89b7a713b5aa131f23032d3cca1b251`, file `whistle.cact` — **not** vendored, downloaded at runtime into the shared HF cache |
+| License         | Apache-2.0                                                                                                                                                                                                     |
 
 ## Files
 
@@ -32,13 +32,13 @@ a2501f416a562bf0c2ad734821dd190571d22ced22c104372b8cd41b40245114  windows-x86_64
 90f347f9dca1199de79967ab199a56e0588bd473fe306051f8d80d146976a324  needle.h
 ```
 
-| Folder           | Size (bytes) | Rust target                   |
-| ---------------- | -----------: | ----------------------------- |
-| `macos-arm64`    |    1503976   | `aarch64-apple-darwin`        |
-| `linux-x86_64`   |    2143656   | `x86_64-unknown-linux-gnu`    |
-| `linux-arm64`    |    1966732   | `aarch64-unknown-linux-gnu`   |
-| `windows-x86_64` |    2292578   | `x86_64-pc-windows-msvc`      |
-| `windows-arm64`  |    2078628   | `aarch64-pc-windows-msvc`     |
+| Folder           | Size (bytes) | Rust target                 |
+| ---------------- | -----------: | --------------------------- |
+| `macos-arm64`    |      1503976 | `aarch64-apple-darwin`      |
+| `linux-x86_64`   |      2143656 | `x86_64-unknown-linux-gnu`  |
+| `linux-arm64`    |      1966732 | `aarch64-unknown-linux-gnu` |
+| `windows-x86_64` |      2292578 | `x86_64-pc-windows-msvc`    |
+| `windows-arm64`  |      2078628 | `aarch64-pc-windows-msvc`   |
 
 ## Platform coverage caveat
 
@@ -82,13 +82,13 @@ supported target, not just Apple.
    ```
 
 3. Update the hash table above and re-verify: `cargo build`, `cargo test --lib
-   whistle`, then silence and speech end-to-end through `--transcribe-file`
+whistle`, then silence and speech end-to-end through `--transcribe-file`
    (silence must yield empty text with exit code 0; speech must yield a correct
    decode). A C API change means editing the `extern` block in
    `src-tauri/src/audio_toolkit/whistle.rs`.
 4. Commit the new archives **and** the updated hashes together — an unreviewed
    swap of a vendored binary is unreviewable.
 
-Model weights are deliberately *not* vendored: `whistle.cact` is fetched from
+Model weights are deliberately _not_ vendored: `whistle.cact` is fetched from
 Hugging Face on demand and sha256-verified against the hash in
 `src-tauri/src/catalog/catalog.json`.
